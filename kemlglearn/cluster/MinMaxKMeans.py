@@ -17,6 +17,10 @@ from sklearn.base import BaseEstimator, ClusterMixin, TransformerMixin
 from sklearn.metrics import euclidean_distances
 
 
+def ssd(X, Y):
+    return np.square(euclidean_distances(X, Y))
+
+
 class MinMaxKMeans(BaseEstimator, ClusterMixin, TransformerMixin):
 
     def __init__(self, n_clusters, p_max: float = 0.5, p_step: float = 0.01,
@@ -62,16 +66,16 @@ class MinMaxKMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         self.p = p_init
         self.w = [1/self.n_clusters for _ in range(self.n_clusters)]
         self.cluster_centers_ = [X[i] for i in rs.randint(X.shape[0], size=self.n_clusters)]
-        self.labels_ = np.argmin(np.multiply(np.power(self.w, self.p), euclidean_distances(X, self.cluster_centers_)), axis=1)
+        self.labels_ = np.argmin(np.multiply(np.power(self.w, self.p), ssd(X, self.cluster_centers_)), axis=1)
         empty = False
         last_E = self._get_E(X)
         stored_assign = {}
         stored_weights = {}
         for self.n_iter_ in range(1, self.t_max+1):
-            self.labels_ = np.argmin(np.multiply(np.power(self.w, self.p), euclidean_distances(X, self.cluster_centers_)), axis=1)
+            self.labels_ = np.argmin(np.multiply(np.power(self.w, self.p), ssd(X, self.cluster_centers_)), axis=1)
             if np.min([np.where(self.labels_ == i)[0].shape[0] for i in range(self.n_clusters)]) < 2:
                 empty = True
-                self.p = self.p - self.p_step
+                self.p = round(self.p - self.p_step, 2)
                 if self.p < p_init:
                     return
                 self.labels_ = stored_assign[self.p]
@@ -84,11 +88,12 @@ class MinMaxKMeans(BaseEstimator, ClusterMixin, TransformerMixin):
             if self.p < self.p_max and empty is False:
                 stored_assign[self.p] = self.labels_.copy()
                 stored_weights[self.p] = self.w
-                self.p = self.p + self.p_step
+                self.p = round(self.p + self.p_step, 2)
 
-            v = [np.sum(euclidean_distances(X[np.where(self.labels_ == k)],
-                                            [self.cluster_centers_[k]]).reshape(-1))
+            v = [np.sum(ssd(X[np.where(self.labels_ == k)],
+                            [self.cluster_centers_[k]]).reshape(-1))
                  for k in range(self.n_clusters)]
+
             self.w = [self.beta * self.w[k] + (1 - self.beta) * (np.power(v[k], 1/(1 - self.p)) /
                                                                  np.sum(np.power(v, 1/(1 - self.p))))
                  for k in range(self.n_clusters)]
@@ -107,8 +112,8 @@ class MinMaxKMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         :param X: Training instances to cluster.
         :return: Relaxed maximum variance objective
         """
-        return np.sum([np.power(self.w[k], self.p)*np.sum(euclidean_distances(X[np.where(self.labels_ == k)],
-                                                                              [self.cluster_centers_[k]]).reshape(-1))
+        return np.sum([np.power(self.w[k], self.p)*np.sum(ssd(X[np.where(self.labels_ == k)],
+                                                          [self.cluster_centers_[k]]).reshape(-1))
                        for k in range(self.n_clusters)])
 
     def fit_predict(self, X, y=None, sample_weight=None):
@@ -164,7 +169,7 @@ class MinMaxKMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         :param sample_weight: Not used, present here for API consistency by convention.
         :return: Index of the cluster each sample belongs to.
         """
-        return np.argmin(np.multiply(np.power(self.w, self.p), euclidean_distances(X, self.cluster_centers_)), axis=1)
+        return np.argmin(np.multiply(np.power(self.w, self.p), ssd(X, self.cluster_centers_)), axis=1)
 
     def score(self, X, y=None, sample_weight=None) -> float:
         """
@@ -195,5 +200,5 @@ class MinMaxKMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         :param X: New data to transform.
         :return: X transformed in the new space.
         """
-        return euclidean_distances(X, self.cluster_centers_)
+        return ssd(X, self.cluster_centers_)
 
