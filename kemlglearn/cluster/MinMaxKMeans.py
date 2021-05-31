@@ -65,10 +65,11 @@ class MinMaxKMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         p_init = 0
         self.p = p_init
         self.w = [1/self.n_clusters for _ in range(self.n_clusters)]
-        self.cluster_centers_ = [X[i] for i in rs.randint(X.shape[0], size=self.n_clusters)]
+        random_idxs = rs.randint(X.shape[0], size=self.n_clusters)
+        self.cluster_centers_ = [X[i] for i in random_idxs]
         self.labels_ = np.argmin(np.multiply(np.power(self.w, self.p), ssd(X, self.cluster_centers_)), axis=1)
         empty = False
-        last_E = self._get_E(X)
+        last_E = self._get_Ew(X)
         stored_assign = {}
         stored_weights = {}
         for self.n_iter_ in range(1, self.t_max+1):
@@ -98,14 +99,14 @@ class MinMaxKMeans(BaseEstimator, ClusterMixin, TransformerMixin):
                                                                  np.sum(np.power(v, 1/(1 - self.p))))
                  for k in range(self.n_clusters)]
 
-            new_E = self._get_E(X)
+            new_E = self._get_Ew(X)
             if np.abs(new_E - last_E) < self.epsilon:
                 break
             last_E = new_E
 
         self.inertia_ = np.sum(v)
 
-    def _get_E(self, X) -> float:
+    def _get_Ew(self, X) -> float:
         """
         Computes the relaxed maximum variance objective.
 
@@ -114,6 +115,7 @@ class MinMaxKMeans(BaseEstimator, ClusterMixin, TransformerMixin):
         """
         return np.sum([np.power(self.w[k], self.p)*np.sum(ssd(X[np.where(self.labels_ == k)],
                                                           [self.cluster_centers_[k]]).reshape(-1))
+                       if np.where(self.labels_ == k)[0].shape[0] > 0 else 0
                        for k in range(self.n_clusters)])
 
     def fit_predict(self, X, y=None, sample_weight=None):
