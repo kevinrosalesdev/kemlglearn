@@ -1,6 +1,8 @@
 kemlglearn
 ==========
 
+## This version includes MinMax k-Means Clustering algorithm!!
+
 Different ML and preprocesing algorithms in python specially for clustering 
 
 Trying to follow the interfaces of scikit-learn
